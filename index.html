@@ -324,22 +324,39 @@
             await new Promise((r) => setTimeout(r, speed));
           }
         } else {
-          const utter = new SpeechSynthesisUtterance(
-            document.getElementById(`msg-${id}`).value,
-          );
-          const targetVoice =
-            voices.find(
-              (v) =>
-                (v.name.includes("Male") || v.name.includes("Zhiwei")) &&
-                v.lang.includes("zh"),
-            ) || voices.find((v) => v.lang.includes("zh"));
-          if (targetVoice) utter.voice = targetVoice;
+          // iOS Safari 修復：先取消任何現有語音
+          window.speechSynthesis.cancel();
+
+          // 重新載入語音（手機可能需要）
+          if (voices.length === 0) {
+            voices = window.speechSynthesis.getVoices();
+          }
+
+          const text = document.getElementById(`msg-${id}`).value;
+          const utter = new SpeechSynthesisUtterance(text);
+
+          // 簡化語音選擇（手機兼容性更好）
+          const zhVoice = voices.find((v) => v.lang.startsWith("zh"));
+          if (zhVoice) utter.voice = zhVoice;
+
           utter.volume = vol;
           utter.pitch = parseFloat(
             document.getElementById(`pitch-${id}`).value,
           );
           utter.rate = 0.9;
-          window.speechSynthesis.speak(utter);
+          utter.lang = "zh-TW"; // 明確設定語言
+
+          // 錯誤處理：如果 TTS 失敗，使用 beep 作為備用
+          utter.onerror = (e) => {
+            console.error("TTS 錯誤:", e);
+            playBeep(vol, 880);
+            playBeep(vol, 880);
+          };
+
+          // 使用 setTimeout 來確保 iOS Safari 正確處理
+          setTimeout(() => {
+            window.speechSynthesis.speak(utter);
+          }, 100);
         }
 
         if (document.getElementById(`auto-${id}`).checked) {
