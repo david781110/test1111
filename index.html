@@ -179,16 +179,35 @@
       const timerData = {};
       let audioCtx;
       let voices = [];
+      let ttsUnlocked = false; // 追蹤 TTS 是否已解鎖（手機需要）
 
-      window.speechSynthesis.onvoiceschanged = () =>
-        (voices = window.speechSynthesis.getVoices());
+      // 改進語音載入
+      function loadVoices() {
+        voices = window.speechSynthesis.getVoices();
+        console.log("已載入語音數量:", voices.length);
+      }
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+      loadVoices(); // 立即嘗試載入
 
       function initAudio() {
         if (!audioCtx)
           audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === "suspended") audioCtx.resume();
+
+        // 解鎖 TTS（對手機至關重要）
+        if (!ttsUnlocked) {
+          const silentUtter = new SpeechSynthesisUtterance("");
+          silentUtter.volume = 0;
+          window.speechSynthesis.speak(silentUtter);
+          ttsUnlocked = true;
+          console.log("TTS 已解鎖");
+        }
       }
-      window.addEventListener("click", initAudio, { once: true });
+
+      // 在多個使用者互動事件上初始化（支援手機觸控）
+      ["click", "touchstart", "touchend"].forEach((event) => {
+        window.addEventListener(event, initAudio, { once: true });
+      });
 
       for (let i = 1; i <= 6; i++) {
         createTimer(i);
